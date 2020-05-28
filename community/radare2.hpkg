@@ -1,0 +1,55 @@
+(use ../prelude)
+(import ../core)
+(use ./libedit)
+(use ./capstone)
+(use ./ncurses)
+
+(defsrc radare2-src
+  :file-name
+  "radare2-4.4.0.tar.gz"
+  :url
+  "https://github.com/radareorg/radare2/archive/4.4.0.tar.gz"
+  :hash
+  "sha256:401ab89f39f7e70e03336f6890dc4fdf52dae4f61201e4cd8a1fbe5a4b9eb451")
+
+(defpkg radare2
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (join-pkg-paths ":" "/lib/pkgconfig"
+                               [capstone]))
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/patch
+                                core/sed
+                                core/awk
+                                core/pkgconf]))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       "-I" (capstone :path) "/include"
+                       " "
+                       (sh/$<_ pkg-config --cflags capstone)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (capstone :path) "/lib"
+                       " "
+                       "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
+                                                     [capstone])
+                       " "
+                       (sh/$<_ pkg-config --libs capstone)))
+    (os/setenv "PREFIX" (dyn :pkg-out))
+
+    (core/link-/bin/sh)
+    (unpack-src radare2-src)
+    # (sh/$ ./configure
+    #       --with-syscapstone
+    #       --prefix= ^ (dyn :pkg-out))
+    # (sh/$ make mrproper
+    #        -j (dyn :parallelism))
+    (sh/$ "sys/install.sh" --with-syscapstone --with-rpath)))
