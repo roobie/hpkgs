@@ -1,6 +1,7 @@
 (use ../prelude)
 (import ../core)
 (use ./capstone)
+(use ./file)
 (use ./python3)
 (use ./ninja)
 (use ./meson)
@@ -21,7 +22,7 @@
   (fn []
     (os/setenv "PKG_CONFIG_PATH"
                (join-pkg-paths ":" "/lib/pkgconfig"
-                               [capstone]))
+                               [capstone file]))
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/coreutils
@@ -39,17 +40,19 @@
                (string *default-cflags*
                        " "
                        "-I" (capstone :path) "/include"
+                       "-I" (file :path) "/include"
                        " "
-                       (sh/$<_ pkg-config --cflags capstone)))
+                       (sh/$<_ pkg-config --cflags capstone file)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
                        "-L" (capstone :path) "/lib"
+                       "-I" (file :path) "/lib"
                        " "
                        "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
-                                                     [capstone])
+                                                     [capstone file])
                        " "
-                       (sh/$<_ pkg-config --libs capstone)))
+                       (sh/$<_ pkg-config --libs capstone file)))
 
     # (os/setenv "PREFIX" (string (dyn :pkg-out) "/usr"))
     (os/setenv "PREFIX" (dyn :pkg-out))

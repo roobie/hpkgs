@@ -28,4 +28,5 @@
      (core/link-/bin/sh)
      (sh/$ make -j (dyn :parallelism))
      (sh/$ make install)
+     # (sh/$ sh ./make.sh install)
      ))

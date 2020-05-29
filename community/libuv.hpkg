@@ -1,8 +1,10 @@
 (use ../prelude)
 (import ../core)
 (use ./libtool)
-(use ./autoconf)
-(use ./automake)
+# (use ./autoconf)
+# (use ./automake)
+(use ./cmake)
+(use ./m4)
 
 (defsrc libuv-src
   :file-name
@@ -27,19 +29,24 @@
                                 core/patch
                                 core/sed
                                 core/awk
-                                autoconf
-                                automake
+                                # autoconf
+                                # automake
+                                cmake
+                                m4
                                 libtool
                                 core/pkgconf]))
     (os/setenv "CFLAGS"
-               (string *default-cflags*))
+               *default-cflags*)
     (os/setenv "LDFLAGS"
-               (string *default-ldflags*))
+               *default-ldflags*)
 
-    (os/setenv "PREFIX" (string (dyn :pkg-out)))
+    (os/setenv "M4" (m4 :path))
+    (os/setenv "PREFIX" (dyn :pkg-out))
 
     (core/link-/bin/sh)
     (unpack-src libuv-src)
+
+    (repl nil nil (fiber/getenv (fiber/current)))
 
     (sh/$ libtoolize --copy -v)
     (sh/$ aclocal -I m4)
