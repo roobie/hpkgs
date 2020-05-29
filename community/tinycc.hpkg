@@ -1,0 +1,40 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc tinycc-src
+  :file-name
+  "tinycc-release_0_9_27.tar.gz"
+  :url
+  "https://github.com/TinyCC/tinycc/archive/release_0_9_27.tar.gz"
+  :hash
+  "sha256:439760025dcb2df0281566bb2b98fead52cb6bafa697f2147d94d2222ef71363")
+
+(defpkg tinycc
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/awk
+                                 core/coreutils
+                                 core/pkgconf
+                                 core/gcc
+                                 core/grep
+                                 core/make
+                                 core/sed]))
+     (os/setenv "PKG_CONFIG_PATH"
+                (string (core/gcc :path) "/lib/pkgconfig"))
+     (os/setenv "CFLAGS"
+                (string *default-cflags*
+                        " "
+                        (sh/$<_ pkg-config --cflags XXX)))
+     (os/setenv "LDFLAGS"
+                 *default-ldflags*)
+     (unpack-src tinycc-src)
+     (core/link-/bin/sh)
+     (sh/$ ./configure
+           --prefix= ^ (dyn :pkg-out))
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make
+           test
+           install)))

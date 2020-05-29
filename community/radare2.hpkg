@@ -1,8 +1,12 @@
 (use ../prelude)
 (import ../core)
-(use ./libedit)
 (use ./capstone)
-(use ./ncurses)
+(use ./python3)
+(use ./ninja)
+(use ./meson)
+
+# XXX bundled tree-sitter.
+# XXX libuv, while not required might be good to provide for radare2.
 
 (defsrc radare2-src
   :file-name
@@ -27,6 +31,9 @@
                                 core/patch
                                 core/sed
                                 core/awk
+                                meson
+                                python3
+                                ninja
                                 core/pkgconf]))
     (os/setenv "CFLAGS"
                (string *default-cflags*
@@ -43,13 +50,22 @@
                                                      [capstone])
                        " "
                        (sh/$<_ pkg-config --libs capstone)))
+
+    # (os/setenv "PREFIX" (string (dyn :pkg-out) "/usr"))
     (os/setenv "PREFIX" (dyn :pkg-out))
+    (os/setenv "DESTDIR" (dyn :pkg-out))
+    (os/setenv "BINDIR" (string (dyn :pkg-out) "/bin"))
+    (os/setenv "LIBDIR" (string (dyn :pkg-out) "/lib"))
 
     (core/link-/bin/sh)
     (unpack-src radare2-src)
-    # (sh/$ ./configure
-    #       --with-syscapstone
-    #       --prefix= ^ (dyn :pkg-out))
-    # (sh/$ make mrproper
-    #        -j (dyn :parallelism))
-    (sh/$ "sys/install.sh" --with-syscapstone --with-rpath)))
+
+    (sh/$ meson
+          -Duse_sys_capstone=true
+          -Duse_libuv=false
+          (dyn :pkg-out))
+
+    (sh/$ ninja -C
+          (dyn :pkg-out)
+          install)
+    ))

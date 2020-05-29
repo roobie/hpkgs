@@ -2,6 +2,8 @@
 (import ../core)
 
 (defsrc capstone-src
+  :file-name
+   "capstone-4.0.2.tar.gz"
   :url
    "https://github.com/aquynh/capstone/archive/4.0.2.tar.gz"
   :hash
@@ -16,11 +18,14 @@
                                  core/grep
                                  core/awk
                                  core/sed
+                                 core/pkgconf
                                  core/gcc core/make]))
      (os/setenv "CFLAGS" *default-cflags*)
      (os/setenv "LDFLAGS" *default-ldflags*)
+     (os/setenv "LIBDIR" "lib")
      (os/setenv "PREFIX" (dyn :pkg-out))
      (unpack-src capstone-src)
      (core/link-/bin/sh)
      (sh/$ make -j (dyn :parallelism))
-     (sh/$ make install)))
+     (sh/$ make install)
+     ))

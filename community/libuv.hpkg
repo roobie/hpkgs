@@ -1,0 +1,51 @@
+(use ../prelude)
+(import ../core)
+(use ./libtool)
+(use ./autoconf)
+(use ./automake)
+
+(defsrc libuv-src
+  :file-name
+  "libuv-1.38.0.tar.gz"
+  :url
+   "https://github.com/libuv/libuv/archive/v1.38.0.tar.gz"
+  :hash
+   "sha256:2cd9a757fe6c512440933e2bdcab21143d4aa6249b2541399908ce038b756c9d")
+
+(defpkg libuv
+  :builder
+  (fn []
+    # (os/setenv "PKG_CONFIG_PATH"
+    #            (join-pkg-paths ":" "/lib/pkgconfig"
+    #                            []))
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/patch
+                                core/sed
+                                core/awk
+                                autoconf
+                                automake
+                                libtool
+                                core/pkgconf]))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*))
+
+    (os/setenv "PREFIX" (string (dyn :pkg-out)))
+
+    (core/link-/bin/sh)
+    (unpack-src libuv-src)
+
+    (sh/$ libtoolize --copy -v)
+    (sh/$ aclocal -I m4)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)
+    ))
