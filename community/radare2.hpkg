@@ -1,5 +1,6 @@
 (use ../prelude)
 (import ../core)
+(use ./patchelf)
 (use ./capstone)
 (use ./file)
 (use ./xxhash)
@@ -12,8 +13,8 @@
 (use ./ninja)
 (use ./meson)
 
-# XXX bundled tree-sitter.
-# XXX lz4
+# XXX tree-sitter can be used to enable features.
+# XXX System libraries still to be linked: openssl, zip, zlib, xxhash, lz4
 
 (defsrc radare2-src
   :file-name
@@ -32,7 +33,7 @@
                                 [libuv])
                 ":"
                 (join-pkg-paths ":" "/lib/pkgconfig"
-                                [capstone zlib openssl])))
+                                [capstone zlib openssl xxhash])))
 
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
@@ -64,7 +65,7 @@
                        " "
                        "-I" (libuv :path) "/include"
                        " "
-                       (sh/$<_ pkg-config --cflags capstone libuv)))
+                       (sh/$<_ pkg-config --cflags capstone libuv libxxhash openssl)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
@@ -87,9 +88,9 @@
                                       (join-pkg-paths ":" "/lib"
                                                       [capstone file xxhash]))
                        " "
-                       "-lmagic"
+                       "-lmagic" # doesn't have .pc
                        " "
-                       (sh/$<_ pkg-config --libs capstone libuv)))
+                       (sh/$<_ pkg-config --libs capstone libuv libxxhash openssl)))
 
     (os/setenv "LD_LIBRARY_PATH"
                (string (libuv :path) "/lib64"
@@ -101,15 +102,25 @@
           --prefix= ^ (dyn :pkg-out)
           -Duse_sys_capstone=true
           -Duse_sys_magic=true
-          # -Duse_sys_xxhash=true
+          -Duse_sys_xxhash=true
           # -Duse_sys_zip=true
           # -Duse_sys_zlib=true
-          # -Duse_sys_openssl=true
+          -Duse_sys_openssl=true
           (dyn :pkg-out))
 
     (sh/$ ninja -C
           (dyn :pkg-out)
           install)
+
+    # seems like RPATH is stripped (or never compiled in) from all bin/ and lib/ objects.
+    # ["r2agent" "r2pm" "r2r" "rabin2" "radare2" "radiff2" "rafind2" "ragg2" "rahash2" "rarun2" "rasm2" "rax2"]
+    # (each binary (os/dir (string (dyn :pkg-out) "/bin"))
+    #   (sh/$ patchelf
+    #         --set-rpath (dyn :pkg-out) ^ "/lib"
+    #         (dyn :pkg-out) ^ (string "/bin/" binary)))
+
+    (os/cd (string (dyn :pkg-out) "/bin"))
+    (sh/$ ln -fs radare2 r2)
 
     (repl nil nil (fiber/getenv (fiber/current)))
     ))
