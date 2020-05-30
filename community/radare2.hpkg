@@ -1,23 +1,15 @@
 (use ../prelude)
 (import ../core)
-(use ./patchelf)
 (use ./capstone)
 (use ./file)
 (use ./xxhash)
 (use ./zlib)
-(use ./lzip)
+(use ./libzip)
+(use ./lz4)
 (use ./openssl)
 (use ./libuv)
-(use ./python3)
-(use ./cmake)
-(use ./ninja)
-(use ./meson)
-(use ./autoconf)
-(use ./automake)
-(use ./m4)
 
 # XXX tree-sitter can be used to enable features.
-# XXX System libraries still to be linked: openssl, zip, zlib, xxhash, lz4
 
 (defsrc radare2-src
   :file-name
@@ -33,10 +25,10 @@
     (os/setenv "PKG_CONFIG_PATH"
                (string
                 (join-pkg-paths ":" "/lib64/pkgconfig"
-                                [libuv])
+                                [libuv libzip])
                 ":"
                 (join-pkg-paths ":" "/lib/pkgconfig"
-                                [capstone zlib openssl xxhash])))
+                                [capstone zlib openssl xxhash lz4])))
 
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
@@ -50,12 +42,7 @@
                                 core/awk
                                 core/tar
                                 core/pkgconf
-                                automake
-                                autoconf
-                                m4
-                                meson
-                                python3
-                                ninja]))
+                               ]))
     (core/link-/bin/sh)
     (unpack-src radare2-src)
     (os/setenv "CFLAGS"
@@ -69,11 +56,15 @@
                        " "
                        "-I" (openssl :path) "/include"
                        " "
-                       "-I" (lzip :path) "/include"
+                       "-I" (zlib :path) "/include"
+                       " "
+                       "-I" (libzip :path) "/include"
+                       " "
+                       "-I" (lz4 :path) "/include"
                        " "
                        "-I" (libuv :path) "/include"
                        " "
-                       (sh/$<_ pkg-config --cflags capstone libuv libxxhash openssl)))
+                       (sh/$<_ pkg-config --cflags capstone "liblz4" zlib libuv libxxhash openssl)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
@@ -81,75 +72,53 @@
                        " "
                        "-L" (file :path) "/lib"
                        " "
+                       "-L" (zlib :path) "/lib"
+                       " "
+                       "-L" (libzip :path) "/lib64"
+                       " "
+                       "-L" (lz4 :path) "/lib"
+                       " "
                        "-L" (xxhash :path) "/lib"
                        " "
                        "-L" (openssl :path) "/lib"
-                       " "
-                       "-L" (lzip :path) "/lib"
                        " "
                        "-L" (libuv :path) "/lib64"
                        " "
                        "-Wl,-rpath=" (string
                                       (join-pkg-paths ":" "/lib64"
-                                                      [libuv])
+                                                      [libuv libzip])
                                       ":"
-                                      (dyn :pkg-out) "/lib"
+                                      (dyn :pkg-out) "/lib" # to find own libs
                                       ":"
                                       (join-pkg-paths ":" "/lib"
-                                                      [capstone file xxhash openssl]))
+                                                      [capstone lz4 zlib file xxhash openssl]))
                        " "
-                       "-lmagic" # doesn't have .pc
+                       "-lmagic" # doesn't have a .pc
                        " "
-                       (sh/$<_ pkg-config --libs capstone libuv libxxhash openssl)))
+                       (sh/$<_ pkg-config --libs capstone "liblz4" zlib libzip libuv libxxhash openssl)))
 
     (os/setenv "LD_LIBRARY_PATH"
-               (string (libuv :path) "/lib64"
-                       ":"
-                       (join-pkg-paths ":" "/lib"
-                                       [capstone openssl file lzip xxhash])))
+               (string
+                (join-pkg-paths ":" "/lib"
+                                [libuv libzip])
+                ":"
+                (join-pkg-paths ":" "/lib"
+                                [capstone lz4 zlib libzip openssl file xxhash])))
 
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out)
-          # --with-rpath
           --with-syscapstone
           --with-sysxxhash
+          --with-syszip
           --with-sysmagic
           --with-openssl
           --shared)
 
+    # XXX: seems like it the makefiles assumes that /lib exists
     (os/mkdir (string (dyn :pkg-out) "/lib"))
-    # (print (dyn :pkg-out))
-    # (repl nil nil (fiber/getenv (fiber/current)))
 
     (sh/$ make
           -j (dyn :parallelism))
 
     (sh/$ make
-          install)
-
-    # (sh/$ python3 sys/meson.py
-    #       --prefix= ^ (dyn :pkg-out)
-    #       # --release
-    #       --shared
-    #       --local
-    #       # --nosudo
-    #       # --symstall
-    #       # --install # XXX: not supported on POSIX :|
-    #       --dir= ^ (string (dyn :pkg-out) "/build")
-    #       --options
-    #       use_sys_capstone=true
-    #       use_sys_magic=true
-    #       use_sys_xxhash=true
-    #       # -Duse_sys_zip=true
-    #       # -Duse_sys_zlib=true
-    #       use_sys_openssl=true)
-
-    # XXX: ninja install breaks rpath for libr/**
-    # XXX we could:
-    # mkdir <hpkg>/bin
-    # ln -s <hpkg>/binr/<bin-name>/<bin-name> <hpkg>/bin/<bin-name>
-    # XXX: or patchelf each *.so, I guess, but that's too much.
-
-    (print (dyn :pkg-out))
-    (repl nil nil (fiber/getenv (fiber/current)))
-    ))
+          install)))

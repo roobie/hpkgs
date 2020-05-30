@@ -34,8 +34,11 @@
     (core/link-/bin/sh)
     (unpack-src libuv-src)
 
+    (os/mkdir "build")
+    (os/cd "build")
     (sh/$ cmake
-          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out))
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+          "..")
 
     (sh/$ make
           -j (dyn :parallelism))
