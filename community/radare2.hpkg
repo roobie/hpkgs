@@ -41,6 +41,7 @@
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/coreutils
+                                core/findutils
                                 core/gcc
                                 core/grep
                                 core/make
@@ -49,10 +50,10 @@
                                 core/awk
                                 core/tar
                                 core/pkgconf
-                                meson
                                 automake
                                 autoconf
                                 m4
+                                meson
                                 python3
                                 ninja]))
     (core/link-/bin/sh)
@@ -92,6 +93,8 @@
                                       (join-pkg-paths ":" "/lib64"
                                                       [libuv])
                                       ":"
+                                      (dyn :pkg-out) "/lib"
+                                      ":"
                                       (join-pkg-paths ":" "/lib"
                                                       [capstone file xxhash openssl]))
                        " "
@@ -105,22 +108,41 @@
                        (join-pkg-paths ":" "/lib"
                                        [capstone openssl file lzip xxhash])))
 
-    (sh/$ python3 sys/meson.py
+    (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out)
-          # --release
-          --shared
-          --local
-          # --nosudo
-          # --symstall
-          # --install # XXX: not supported on POSIX :|
-          --dir= ^ (string (dyn :pkg-out) "/build")
-          --options
-          use_sys_capstone=true
-          use_sys_magic=true
-          use_sys_xxhash=true
-          # -Duse_sys_zip=true
-          # -Duse_sys_zlib=true
-          use_sys_openssl=true)
+          # --with-rpath
+          --with-syscapstone
+          --with-sysxxhash
+          --with-sysmagic
+          --with-openssl
+          --shared)
+
+    (os/mkdir (string (dyn :pkg-out) "/lib"))
+    # (print (dyn :pkg-out))
+    # (repl nil nil (fiber/getenv (fiber/current)))
+
+    (sh/$ make
+          -j (dyn :parallelism))
+
+    (sh/$ make
+          install)
+
+    # (sh/$ python3 sys/meson.py
+    #       --prefix= ^ (dyn :pkg-out)
+    #       # --release
+    #       --shared
+    #       --local
+    #       # --nosudo
+    #       # --symstall
+    #       # --install # XXX: not supported on POSIX :|
+    #       --dir= ^ (string (dyn :pkg-out) "/build")
+    #       --options
+    #       use_sys_capstone=true
+    #       use_sys_magic=true
+    #       use_sys_xxhash=true
+    #       # -Duse_sys_zip=true
+    #       # -Duse_sys_zlib=true
+    #       use_sys_openssl=true)
 
     # XXX: ninja install breaks rpath for libr/**
     # XXX we could:
