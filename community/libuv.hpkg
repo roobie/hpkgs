@@ -1,25 +1,18 @@
 (use ../prelude)
 (import ../core)
-(use ./libtool)
-# (use ./autoconf)
-# (use ./automake)
 (use ./cmake)
-(use ./m4)
 
 (defsrc libuv-src
   :file-name
   "libuv-1.38.0.tar.gz"
   :url
-   "https://github.com/libuv/libuv/archive/v1.38.0.tar.gz"
+  "https://github.com/libuv/libuv/archive/v1.38.0.tar.gz"
   :hash
-   "sha256:2cd9a757fe6c512440933e2bdcab21143d4aa6249b2541399908ce038b756c9d")
+  "sha256:2cd9a757fe6c512440933e2bdcab21143d4aa6249b2541399908ce038b756c9d")
 
 (defpkg libuv
   :builder
   (fn []
-    # (os/setenv "PKG_CONFIG_PATH"
-    #            (join-pkg-paths ":" "/lib/pkgconfig"
-    #                            []))
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/coreutils
@@ -29,30 +22,21 @@
                                 core/patch
                                 core/sed
                                 core/awk
-                                # autoconf
-                                # automake
                                 cmake
-                                m4
-                                libtool
                                 core/pkgconf]))
     (os/setenv "CFLAGS"
                *default-cflags*)
     (os/setenv "LDFLAGS"
                *default-ldflags*)
 
-    (os/setenv "M4" (m4 :path))
     (os/setenv "PREFIX" (dyn :pkg-out))
 
     (core/link-/bin/sh)
     (unpack-src libuv-src)
 
-    (repl nil nil (fiber/getenv (fiber/current)))
+    (sh/$ cmake
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out))
 
-    (sh/$ libtoolize --copy -v)
-    (sh/$ aclocal -I m4)
-    (sh/$ ./configure
-          --prefix= ^ (dyn :pkg-out))
     (sh/$ make
           -j (dyn :parallelism))
-    (sh/$ make install)
-    ))
+    (sh/$ make install)))

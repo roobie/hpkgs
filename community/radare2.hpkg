@@ -2,12 +2,17 @@
 (import ../core)
 (use ./capstone)
 (use ./file)
+(use ./xxhash)
+(use ./zlib)
+(use ./lzip)
+(use ./openssl)
+(use ./libuv)
 (use ./python3)
+(use ./cmake)
 (use ./ninja)
 (use ./meson)
 
 # XXX bundled tree-sitter.
-# XXX libuv, while not required might be good to provide for radare2.
 
 (defsrc radare2-src
   :file-name
@@ -21,8 +26,13 @@
   :builder
   (fn []
     (os/setenv "PKG_CONFIG_PATH"
-               (join-pkg-paths ":" "/lib/pkgconfig"
-                               [capstone file]))
+               (string
+                (join-pkg-paths ":" "/lib64/pkgconfig"
+                                [libuv])
+                ":"
+                (join-pkg-paths ":" "/lib/pkgconfig"
+                                [capstone zlib openssl]))
+               )
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/coreutils
@@ -33,39 +43,58 @@
                                 core/sed
                                 core/awk
                                 meson
+                                cmake
                                 python3
                                 ninja
                                 core/pkgconf]))
+    (core/link-/bin/sh)
+    (unpack-src radare2-src)
+    # (repl nil nil (fiber/getenv (fiber/current)))
     (os/setenv "CFLAGS"
                (string *default-cflags*
                        " "
                        "-I" (capstone :path) "/include"
+                       " "
                        "-I" (file :path) "/include"
                        " "
-                       (sh/$<_ pkg-config --cflags capstone file)))
+                       "-I" (xxhash :path) "/include"
+                       " "
+                       "-I" (openssl :path) "/include"
+                       " "
+                       "-I" (lzip :path) "/include"
+                       " "
+                       "-I" (libuv :path) "/include"
+                       " "
+                       (sh/$<_ pkg-config --cflags capstone)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
                        "-L" (capstone :path) "/lib"
-                       "-I" (file :path) "/lib"
+                       " "
+                       "-L" (file :path) "/lib"
+                       " "
+                       "-L" (xxhash :path) "/lib"
+                       " "
+                       "-L" (openssl :path) "/lib"
+                       " "
+                       "-L" (lzip :path) "/lib"
+                       " "
+                       "-L" (libuv :path) "/lib64"
                        " "
                        "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
-                                                     [capstone file])
+                                                     [capstone file libuv])
                        " "
-                       (sh/$<_ pkg-config --libs capstone file)))
+                       (sh/$<_ pkg-config --libs capstone)))
 
-    # (os/setenv "PREFIX" (string (dyn :pkg-out) "/usr"))
-    (os/setenv "PREFIX" (dyn :pkg-out))
-    (os/setenv "DESTDIR" (dyn :pkg-out))
-    (os/setenv "BINDIR" (string (dyn :pkg-out) "/bin"))
-    (os/setenv "LIBDIR" (string (dyn :pkg-out) "/lib"))
-
-    (core/link-/bin/sh)
-    (unpack-src radare2-src)
 
     (sh/$ meson
+          --prefix= ^ (dyn :pkg-out)
           -Duse_sys_capstone=true
-          -Duse_libuv=false
+          -Duse_sys_magic=true
+          -Duse_sys_xxhash=true
+          -Duse_sys_zip=true
+          -Duse_sys_zlib=true
+          -Duse_sys_openssl=true
           (dyn :pkg-out))
 
     (sh/$ ninja -C
