@@ -12,6 +12,9 @@
 (use ./cmake)
 (use ./ninja)
 (use ./meson)
+(use ./autoconf)
+(use ./automake)
+(use ./m4)
 
 # XXX tree-sitter can be used to enable features.
 # XXX System libraries still to be linked: openssl, zip, zlib, xxhash, lz4
@@ -44,8 +47,12 @@
                                 core/patch
                                 core/sed
                                 core/awk
+                                core/tar
                                 core/pkgconf
                                 meson
+                                automake
+                                autoconf
+                                m4
                                 python3
                                 ninja]))
     (core/link-/bin/sh)
@@ -86,7 +93,7 @@
                                                       [libuv])
                                       ":"
                                       (join-pkg-paths ":" "/lib"
-                                                      [capstone file xxhash]))
+                                                      [capstone file xxhash openssl]))
                        " "
                        "-lmagic" # doesn't have .pc
                        " "
@@ -98,29 +105,29 @@
                        (join-pkg-paths ":" "/lib"
                                        [capstone openssl file lzip xxhash])))
 
-    (sh/$ meson
+    (sh/$ python3 sys/meson.py
           --prefix= ^ (dyn :pkg-out)
-          -Duse_sys_capstone=true
-          -Duse_sys_magic=true
-          -Duse_sys_xxhash=true
+          # --release
+          --shared
+          --local
+          # --nosudo
+          # --symstall
+          # --install # XXX: not supported on POSIX :|
+          --dir= ^ (string (dyn :pkg-out) "/build")
+          --options
+          use_sys_capstone=true
+          use_sys_magic=true
+          use_sys_xxhash=true
           # -Duse_sys_zip=true
           # -Duse_sys_zlib=true
-          -Duse_sys_openssl=true
-          (dyn :pkg-out))
+          use_sys_openssl=true)
 
-    (sh/$ ninja -C
-          (dyn :pkg-out)
-          install)
+    # XXX: ninja install breaks rpath for libr/**
+    # XXX we could:
+    # mkdir <hpkg>/bin
+    # ln -s <hpkg>/binr/<bin-name>/<bin-name> <hpkg>/bin/<bin-name>
+    # XXX: or patchelf each *.so, I guess, but that's too much.
 
-    # seems like RPATH is stripped (or never compiled in) from all bin/ and lib/ objects.
-    # ["r2agent" "r2pm" "r2r" "rabin2" "radare2" "radiff2" "rafind2" "ragg2" "rahash2" "rarun2" "rasm2" "rax2"]
-    # (each binary (os/dir (string (dyn :pkg-out) "/bin"))
-    #   (sh/$ patchelf
-    #         --set-rpath (dyn :pkg-out) ^ "/lib"
-    #         (dyn :pkg-out) ^ (string "/bin/" binary)))
-
-    (os/cd (string (dyn :pkg-out) "/bin"))
-    (sh/$ ln -fs radare2 r2)
-
+    (print (dyn :pkg-out))
     (repl nil nil (fiber/getenv (fiber/current)))
     ))
