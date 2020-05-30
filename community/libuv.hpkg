@@ -24,11 +24,10 @@
                                 core/awk
                                 cmake
                                 core/pkgconf]))
-    (os/setenv "CFLAGS"
-               *default-cflags*)
-    (os/setenv "LDFLAGS"
-               *default-ldflags*)
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
 
+    # XXX: unsure if actually needed
     (os/setenv "PREFIX" (dyn :pkg-out))
 
     (core/link-/bin/sh)

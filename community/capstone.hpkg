@@ -20,13 +20,16 @@
                                  core/sed
                                  core/pkgconf
                                  core/gcc core/make]))
+
      (os/setenv "CFLAGS" *default-cflags*)
      (os/setenv "LDFLAGS" *default-ldflags*)
+
+     # XXX: this assumes x86_64 target platform. Otherwise this should be lib64, I think
      (os/setenv "LIBDIR" "lib")
      (os/setenv "PREFIX" (dyn :pkg-out))
+
      (unpack-src capstone-src)
      (core/link-/bin/sh)
+
      (sh/$ make -j (dyn :parallelism))
-     (sh/$ make install)
-     # (sh/$ sh ./make.sh install)
-     ))
+     (sh/$ make install)))

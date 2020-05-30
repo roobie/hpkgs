@@ -17,6 +17,7 @@
      (os/setenv "PKG_CONFIG_PATH"
                 (join-pkg-paths ":" "/lib/pkgconfig"
                                  [zlib]))
+
      (os/setenv "PATH"
                 (join-pkg-paths ":" "/bin"
                                 [core/awk
@@ -27,6 +28,7 @@
                                  core/make
                                  core/sed
                                  cmake]))
+
      (os/setenv "CFLAGS"
                 (string *default-cflags*
                         " "
@@ -39,17 +41,23 @@
                         "-L" (zlib :path) "/lib"
                         " "
                         "-Wl,-rpath=" (string
+                                       (dyn :pkg-out) "/lib64"
+                                       ":"
                                        (join-pkg-paths ":" "/lib"
                                                        [zlib]))
                         " "
                         (sh/$<_ pkg-config --libs zlib)))
+
      (unpack-src libzip-src)
      (core/link-/bin/sh)
+
      (os/mkdir "build")
      (os/cd "build")
      (sh/$ cmake
+           # in this case, cmake does not seem to honour the -l and -L switches fully, so
            -DZLIB_INCLUDE_DIR= ^ (string (zlib :path) "/include")
            -DZLIB_LIBRARY= ^ (string (zlib :path) "/lib")
+           -DCMAKE_SKIP_RPATH=TRUE # ie. skip stripping, I think
            -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
            "..")
 
