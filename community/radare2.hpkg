@@ -13,6 +13,7 @@
 (use ./meson)
 
 # XXX bundled tree-sitter.
+# XXX lz4
 
 (defsrc radare2-src
   :file-name
@@ -31,8 +32,8 @@
                                 [libuv])
                 ":"
                 (join-pkg-paths ":" "/lib/pkgconfig"
-                                [capstone zlib openssl]))
-               )
+                                [capstone zlib openssl])))
+
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/coreutils
@@ -42,14 +43,12 @@
                                 core/patch
                                 core/sed
                                 core/awk
+                                core/pkgconf
                                 meson
-                                cmake
                                 python3
-                                ninja
-                                core/pkgconf]))
+                                ninja]))
     (core/link-/bin/sh)
     (unpack-src radare2-src)
-    # (repl nil nil (fiber/getenv (fiber/current)))
     (os/setenv "CFLAGS"
                (string *default-cflags*
                        " "
@@ -65,7 +64,7 @@
                        " "
                        "-I" (libuv :path) "/include"
                        " "
-                       (sh/$<_ pkg-config --cflags capstone)))
+                       (sh/$<_ pkg-config --cflags capstone libuv)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
@@ -81,23 +80,36 @@
                        " "
                        "-L" (libuv :path) "/lib64"
                        " "
-                       "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
-                                                     [capstone file libuv])
+                       "-Wl,-rpath=" (string
+                                      (join-pkg-paths ":" "/lib64"
+                                                      [libuv])
+                                      ":"
+                                      (join-pkg-paths ":" "/lib"
+                                                      [capstone file xxhash]))
                        " "
-                       (sh/$<_ pkg-config --libs capstone)))
+                       "-lmagic"
+                       " "
+                       (sh/$<_ pkg-config --libs capstone libuv)))
 
+    (os/setenv "LD_LIBRARY_PATH"
+               (string (libuv :path) "/lib64"
+                       ":"
+                       (join-pkg-paths ":" "/lib"
+                                       [capstone openssl file lzip xxhash])))
 
     (sh/$ meson
           --prefix= ^ (dyn :pkg-out)
           -Duse_sys_capstone=true
           -Duse_sys_magic=true
-          -Duse_sys_xxhash=true
-          -Duse_sys_zip=true
-          -Duse_sys_zlib=true
-          -Duse_sys_openssl=true
+          # -Duse_sys_xxhash=true
+          # -Duse_sys_zip=true
+          # -Duse_sys_zlib=true
+          # -Duse_sys_openssl=true
           (dyn :pkg-out))
 
     (sh/$ ninja -C
           (dyn :pkg-out)
           install)
+
+    (repl nil nil (fiber/getenv (fiber/current)))
     ))
