@@ -1,0 +1,59 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc nim-csources-src
+  :file-name
+   "nim-csources-0.20.0.tar.gz"
+  :url
+   "https://github.com/nim-lang/csources/archive/v0.20.0.tar.gz"
+  :hash
+   "sha256:5e6fd15d90df1a8cb7614c4ffc70aa8c4198cd854d7742016202b96dd0228d3c")
+
+(defsrc nim-src
+  :file-name
+   "nim-1.2.0.tar.gz"
+  :url
+   "https://github.com/nim-lang/Nim/archive/v1.2.0.tar.gz"
+  :hash
+   "sha256:0920fe06b724de03ace28ec63db2e71734c1ab77499cafe08289bce25be8d8a4")
+
+(defpkg nim
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (string "/bin:"
+                        (join-pkg-paths ":" "/bin"
+                                        [core/awk
+                                         core/coreutils
+                                         core/findutils
+                                         core/gcc
+                                         core/grep
+                                         core/make
+                                         core/pkgconf
+                                         core/sed])))
+     (unpack-src nim-src)
+
+     (print (os/cwd))
+
+     (os/mkdir "csources")
+     (os/cd "csources")
+     (unpack-src nim-csources-src)
+     (os/cd "..")
+     (unpack-src nim-src)
+     (core/link-/bin/sh)
+
+
+     (sh/$ make -C csources -j (dyn :parallelism))
+     (sh/$ bin/nim c
+           --skipUserCfg --skipParentCfg
+           --nimcache= ^ (string (os/cwd) "/nimcache")
+           koch)
+     (sh/$ ./koch boot
+           -d:release --skipUserCfg --skipParentCfg
+           --nimcache= ^ (string (os/cwd) "/nimcache"))
+     (sh/$ ./koch tools
+           --skipUserCfg --skipParentCfg
+           --nimcache= ^ (string (os/cwd) "/nimcache"))
+
+     (repl nil nil (fiber/getenv (fiber/current)))
+     ))
