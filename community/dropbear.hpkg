@@ -20,9 +20,9 @@
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [core/coreutils core/diffutils core/gcc
-                                core/sed core/grep core/awk core/make
-                                core/findutils
+                               [core/coreutils core/gcc
+                                core/sed core/grep core/awk
+                                core/make core/findutils
                                 busybox]))
 
     (os/setenv "CFLAGS" *default-cflags*)
