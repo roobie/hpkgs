@@ -1,0 +1,47 @@
+(use ../prelude)
+(import ../core)
+(use ./zlib)
+(use ./busybox) # for xargs.
+
+# XXX: dropbear has bundled libtomcrypt and libtommath but question is
+# XXX: whether we want to have hpkgs for those too?
+# XXX: Support for PAM is optional https://github.com/linux-pam/linux-pam
+
+(defsrc dropbear-src
+  :file-name
+   "dropbear-2019.78.tar.bz2"
+  :url
+   "https://matt.ucc.asn.au/dropbear/dropbear-2019.78.tar.bz2"
+  :hash
+   "sha256:525965971272270995364a0eb01f35180d793182e63dd0b0c3eb0292291644a4")
+
+(defpkg dropbear
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/diffutils core/gcc
+                                core/sed core/grep core/awk core/make
+                                core/findutils
+                                busybox]))
+
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       # use RUNPATH
+                       "-Wl,--enable-new-dtags"
+                       " "
+                       "-Wl,-rpath=" (zlib :path) "/lib"))
+
+    (unpack-src dropbear-src)
+    (core/link-/bin/sh)
+
+    (sh/$ ./configure
+          --with-zlib= ^ (zlib :path)
+          --prefix= ^ (dyn :pkg-out))
+
+    (sh/$ make
+         -j (dyn :parallelism))
+    (sh/$ make
+          install)))
