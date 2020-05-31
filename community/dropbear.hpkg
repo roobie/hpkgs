@@ -3,8 +3,9 @@
 (use ./zlib)
 (use ./busybox) # for xargs.
 
-# XXX: dropbear has bundled libtomcrypt and libtommath but question is
-# XXX: whether we want to have hpkgs for those too?
+# XXX: dropbear has bundled libtomcrypt and libtommath, so until we want to
+# package something else that wants these libs, we use the bundled ones here.
+
 # XXX: Support for PAM is optional https://github.com/linux-pam/linux-pam
 
 (defsrc dropbear-src
@@ -20,9 +21,16 @@
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [core/coreutils core/gcc
-                                core/sed core/grep core/awk
-                                core/make core/findutils
+                               [core/coreutils
+                                # XXX: `diff` seems to be used in the
+                                # configure script, but only when certain
+                                # conditions are met, so it might be the
+                                # case that `diff` is not needed, depending
+                                # on the system building the package.
+                                core/diffutils
+                                core/gcc
+                                core/sed core/grep core/awk core/make
+                                core/findutils
                                 busybox]))
 
     (os/setenv "CFLAGS" *default-cflags*)
